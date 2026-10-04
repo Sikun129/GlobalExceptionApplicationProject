@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Global Exception Handling · Live Demo</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#eaf1fb;background:#0b1220;font-synthesis:none}*{box-sizing:border-box}body{margin:0}main{max-width:1260px;margin:auto;padding:36px}header{display:flex;justify-content:space-between;gap:24px;align-items:center}.eyebrow{color:#67e8c4;font-size:12px;letter-spacing:2px;text-transform:uppercase;font-weight:700}h1{font-size:clamp(30px,4vw,48px);letter-spacing:-1.8px;margin:12px 0}p{color:#9eacc2;line-height:1.6}.tag{border:1px solid #30415b;padding:9px 14px;border-radius:99px;font-size:12px;white-space:nowrap}.flow{display:flex;align-items:center;gap:12px;margin:30px 0;padding:20px;background:#131f32;border:1px solid #26354a;border-radius:14px}.flow span{flex:1;text-align:center;font-size:14px}.flow strong{color:#67e8c4}.flow i{font-style:normal;color:#6a7d98}.layout{display:grid;grid-template-columns:340px 1fr;gap:24px}.panel{background:#111c2e;border:1px solid #26354a;border-radius:16px;padding:24px}h2{font-size:17px;margin:0 0 18px}.cases{display:grid;gap:10px}button{font:inherit;cursor:pointer}.case{text-align:left;border:1px solid #2a3a53;border-radius:10px;color:#eaf1fb;background:#17243a;padding:14px;display:flex;align-items:center;gap:14px}.case:hover,.case[aria-pressed=true]{border-color:#67e8c4;background:#1b3442}.case:focus-visible,#reset:focus-visible{outline:3px solid #67e8c4;outline-offset:3px}.case:disabled{opacity:.6;cursor:wait}.code{font:700 15px ui-monospace,monospace;color:#fbbf7a}.ok{color:#67e8c4}.label{font-size:14px}.label small{display:block;font-size:11px;color:#9eacc2;margin-top:4px}.result-top{display:flex;justify-content:space-between;gap:16px;align-items:center}.status{font:700 14px ui-monospace,monospace;color:#67e8c4}.caption{color:#8ea3c0;text-transform:uppercase;font-size:11px;letter-spacing:1.5px;margin:20px 0 8px}pre{font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;background:#0b1424;border:1px solid #243349;border-radius:10px;padding:17px;margin:0;color:#d7e7f9}#response{min-height:295px}.note{border-left:3px solid #67e8c4;padding-left:16px;margin-top:24px}.note p{margin:8px 0;font-size:14px}.note strong{font-size:14px}footer{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:24px;color:#8a9db8;font-size:12px}#reset{color:#c2d0e3;background:transparent;border:1px solid #30415b;border-radius:8px;padding:8px 13px}.source{margin-top:24px}.source summary{cursor:pointer;color:#a9c1e0;font-size:14px}.source pre{margin-top:14px}a{color:#67e8c4}@media(max-width:800px){main{padding:20px}.layout{grid-template-columns:1fr}header{align-items:start}.tag{display:none}.flow{flex-wrap:wrap}.flow span{min-width:100px}#response{min-height:240px}}@media print{body{background:white;color:black}.panel,.flow,pre{background:#f4f6f9;color:black}.case,footer,#reset{display:none}.layout{grid-template-columns:1fr}.note p,p{color:#333}}
+</style>
+</head>
+<body><main>
+<header><div><div class="eyebrow">Java + Spring Boot / Live API demo</div><h1>One handler. Consistent errors.</h1><p>Trigger a real request. See how an exception becomes a useful HTTP response.</p></div><div class="tag">@RestControllerAdvice</div></header>
+<div class="flow" aria-label="Exception handling flow"><span>HTTP request</span><i>→</i><span>Controller / service</span><i>→</i><span><strong>Global handler</strong></span><i>→</i><span>HTTP status + JSON</span></div>
+<div class="layout">
+<section class="panel"><h2>Choose a scenario</h2><div class="cases">
+<button class="case" data-case="success" aria-pressed="false"><span class="code ok">200</span><span class="label">Product found<small>Normal flow; handler is bypassed</small></span></button>
+<button class="case" data-case="missing" aria-pressed="false"><span class="code">404</span><span class="label">Product not found<small>Custom business exception</small></span></button>
+<button class="case" data-case="validation" aria-pressed="false"><span class="code">400</span><span class="label">Invalid order quantity<small>@Valid rejects quantity = 0</small></span></button>
+<button class="case" data-case="stock" aria-pressed="false"><span class="code">409</span><span class="label">Insufficient stock<small>Business rule rejects 10 units</small></span></button>
+<button class="case" data-case="malformed" aria-pressed="false"><span class="code">400</span><span class="label">Malformed JSON<small>Framework error keeps its status</small></span></button>
+<button class="case" data-case="failure" aria-pressed="false"><span class="code">500</span><span class="label">Unexpected failure<small>Safe message + request ID</small></span></button>
+</div><div class="note"><strong id="lesson-title">Presenter cue</strong><p id="lesson">Start with the successful request, then trigger each error. Both controllers share the same exception policy.</p></div></section>
+<section class="panel"><div class="result-top"><h2 style="margin:0">Live request & response</h2><span id="status" class="status" role="status">Ready</span></div><div class="caption">Request</div><pre id="request">Choose a scenario to call the local Spring Boot API.</pre><div class="caption">Actual server response</div><pre id="response" aria-live="polite">The JSON returned by the API will appear here.</pre><details class="source"><summary>The key code to explain</summary><pre>@RestControllerAdvice
+public class GlobalExceptionHandler
+        extends ResponseEntityExceptionHandler {
+
+    @ExceptionHandler(ProductNotFoundException.class)
+    public ProblemDetail notFound(ProductNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND,
+                "PRODUCT_NOT_FOUND", ex.getMessage());
+    }
+    // Validation → 400; stock conflict → 409;
+    // unexpected exceptions → safe 500 response.
+}</pre></details></section>
+</div><footer><span>Repeatable demo · Fixed inventory of 5 · No database needed · Requests stay on localhost</span><button id="reset">Reset display</button></footer>
+<p style="font-size:12px">Reference: <a href="https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-advice.html" target="_blank" rel="noreferrer">Spring controller advice</a>. This handler covers MVC request processing; background tasks and security filters need separate handling.</p>
+</main><script>
+const scenarios = {
+ success:{method:'GET',path:'/api/products/1',title:'200 · No exception',lesson:'The service returns the product normally. Exception handlers do not run on the successful path.'},
+ missing:{method:'GET',path:'/api/products/99',title:'404 · Custom exception',lesson:'ProductService throws ProductNotFoundException. The shared handler maps it to 404 and PRODUCT_NOT_FOUND. The controller has no try/catch.'},
+ validation:{method:'POST',path:'/api/orders/preview',body:'{"productId":1,"quantity":0}',title:'400 · Validate at the boundary',lesson:'@Valid rejects the request before the controller method runs. The handler returns field-level errors that a client can display.'},
+ stock:{method:'POST',path:'/api/orders/preview',body:'{"productId":1,"quantity":10}',title:'409 · Business rule',lesson:'The request is valid, but only five units exist. InsufficientStockException becomes 409 Conflict. This is a second controller using the same advice.'},
+ malformed:{method:'POST',path:'/api/orders/preview',body:'{"productId":',title:'400 · Framework errors count too',lesson:'Spring cannot parse the JSON. ResponseEntityExceptionHandler preserves the correct 400 response instead of treating it as an unexpected 500.'},
+ failure:{method:'GET',path:'/api/products/demo-failure',title:'500 · Keep internal details in logs',lesson:'The fallback logs the full exception with a request ID. The client sees a safe message and the same ID, with no stack trace or database details.'}
+};
+const el=id=>document.getElementById(id);const buttons=[...document.querySelectorAll('.case')];
+buttons.forEach(button=>button.addEventListener('click',async()=>{
+ const s=scenarios[button.dataset.case];buttons.forEach(b=>{b.disabled=true;b.setAttribute('aria-pressed',String(b===button));});el('reset').disabled=true;
+ el('request').textContent=s.method+' '+s.path+(s.body?'\nContent-Type: application/json\n\n'+s.body:'');el('status').textContent='Sending…';el('response').textContent='Waiting for the server…';el('lesson-title').textContent=s.title;el('lesson').textContent=s.lesson;
+ try{const response=await fetch(s.path,{method:s.method,headers:{Accept:'application/json, application/problem+json',...(s.body?{'Content-Type':'application/json'}:{})},...(s.body?{body:s.body}:{})});const raw=await response.text();let formatted;try{formatted=JSON.stringify(JSON.parse(raw),null,2);}catch{formatted=raw;}el('status').textContent='HTTP '+response.status;el('status').style.color=response.ok?'#67e8c4':'#fbbf7a';el('response').textContent=formatted;}
+ catch(error){el('status').textContent='Connection failed';el('response').textContent='Start the Spring Boot app and open http://127.0.0.1:8095.\n\n'+error.message;}
+ finally{buttons.forEach(b=>b.disabled=false);el('reset').disabled=false;}
+}));
+el('reset').addEventListener('click',()=>{buttons.forEach(b=>b.setAttribute('aria-pressed','false'));el('request').textContent='Choose a scenario to call the local Spring Boot API.';el('response').textContent='The JSON returned by the API will appear here.';el('status').textContent='Ready';el('status').style.color='#67e8c4';el('lesson-title').textContent='Presenter cue';el('lesson').textContent='Start with the successful request, then trigger each error. Both controllers share the same exception policy.';});
+</script></body></html>
